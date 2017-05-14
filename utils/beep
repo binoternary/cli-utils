@@ -1,0 +1,4 @@
+#!/bin/bash
+
+BEEP=/usr/share/sounds/KDE-Im-Message-In.ogg
+paplay $BEEP

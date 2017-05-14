@@ -1,0 +1,14 @@
+#!/bin/bash
+
+interval=25m
+msg=Paus
+if [ -n "$1" ]; then
+    interval="$1"
+fi
+
+if [ -n "$2" ]; then
+    msg="$2"
+fi
+
+(sleep "$interval" && (beep && notify-send --urgency=low "$msg")) || exit 1 &
+date --iso-8601=minutes
