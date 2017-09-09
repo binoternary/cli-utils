@@ -2,10 +2,11 @@
 # coding=utf-8
 
 import argparse
-from datetime import datetime
 from collections import namedtuple
-from itertools import groupby
 import csv
+from datetime import datetime
+from itertools import groupby
+import logging
 import os
 import os.path
 from statistics import mean, median
@@ -15,7 +16,7 @@ import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 
 
-Params = namedtuple("Params", ["log_dir", "out_dir"])
+Params = namedtuple("Params", ["log_dir", "out_dir", "log_file"])
 LogEntry = namedtuple("LogEntry", ["datetime", "core_1_temp", "core_2_temp"])
 DataSummary = namedtuple("DataSummary", ["min", "max", "mean", "median"])
 LogSummary = namedtuple("LogSummary", ["datetime_group", "core_1_summary", "core_2_summary"])
@@ -23,6 +24,7 @@ LogSummary = namedtuple("LogSummary", ["datetime_group", "core_1_summary", "core
 
 def main():
     cl_params = parse_args()
+    init_logging(cl_params.log_file)
     temp_data = read_temp_data(cl_params.log_dir)
     summarized_temp_data = summarize(temp_data)
     plot(summarized_temp_data, cl_params)
@@ -32,10 +34,15 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Plot logged CPU temperatures.")
     parser.add_argument("--log-dir" , help="Directory containing temperature logs")
     parser.add_argument("--out-dir" , help="Output directory")
+    parser.add_argument("--log-file" , help="File where to log errors encountered when reading and plotting the data", default=None)
     args = parser.parse_args()
 
-    return Params(args.log_dir, args.out_dir)
+    return Params(args.log_dir, args.out_dir, args.log_file)
 
+
+def init_logging(log_file):
+    if log_file:
+        logging.basicConfig(filename=log_file, format='%(asctime)s %(message)s', level=logging.WARN)
 
 def read_temp_data(log_dir):
     log_entries = []
@@ -50,10 +57,13 @@ def read_temp_data(log_dir):
         with open(os.path.join(log_dir, file), "r") as csvfile:
             reader = csv.reader(csvfile, delimiter=" ")
             next(reader) # skip header
-            for row in reader:
-                log_entries.append(LogEntry(get_datetime(file + row[0]),
+            try:
+                for i, row in enumerate(reader):
+                    log_entries.append(LogEntry(get_datetime(file + row[0]),
                                                get_temp(row[1]),
                                                get_temp(row[2])))
+            except Exception as err:
+                logging.warn('Error reading data (file: %s; row: %s): %s', file, i, err)
     return log_entries
 
 
